@@ -2,11 +2,13 @@
 
 本地运行的五步情绪日志网页：记录情境与情绪、识别认知扭曲、写下积极回应，再查看历史详情和趋势分析。日志内容保存在使用者自己的浏览器中，不上传到 GitHub。
 
+这是精简后的完整源码版：React 界面 + Vite 静态构建 + Node 内置本地服务。已去掉 Vinext / Next.js 服务端渲染、Cloudflare / Wrangler / Sites 托管工具和未使用的组件。UI、字段、交互、密码及加密格式保持原样。
+
 ## 交给 agent，一句话开始
 
 复制以下提示词即可使用（需要固定版本时，也可以将仓库地址换为具体 commit 的链接）：
 
-> 请下载并在我的本地电脑运行这个项目：https://github.com/apcg2/emotion-vault 。直接使用完整源码，保持原版 UI、功能、字段和交互，不重新设计或改写。根据 Windows 或 macOS 环境，按 README 完成首次安装和构建，再使用仓库自带的启动文件，告诉我访问地址和以后双击启动的方法。保留本地加密和密码保护，不覆盖已有数据，不导入模拟记录，不部署到云端。需要授权或输入密码时由我操作；如果你只能访问云端容器，请先告知。
+> 请下载并在我的本地电脑运行这个项目：https://github.com/apcg2/emotion-vault 。使用完整源码，保持原版 UI、功能、字段和交互。按 README 在项目根目录完成首次安装和构建，再使用对应 Windows / macOS 的启动文件，告诉我访问地址和以后双击启动的方法。保留加密和密码保护，不覆盖已有数据，不导入模拟记录，不部署到云端。权限拒绝时先申请正式授权；仍被拒绝就停止重试，告诉我需要在系统终端完成哪一步。需要密码时由我操作；如果只能访问云端容器，请先告知。
 
 ## 包含的功能
 
@@ -22,23 +24,23 @@
 
 ### 首次准备（只需一次）
 
-先下载或克隆本仓库并完整解压，安装 Node.js 24。进入包含 `package.json` 的目录，安装依赖并构建。已验证的运行环境为 Node.js 24.16.0 与 npm 11.13.0；`.nvmrc` 记录了该 Node 版本。Windows PowerShell / macOS 终端均可运行：
+先下载或克隆本仓库并完整解压，安装 Node.js 24。进入包含 `package.json` 的目录，安装依赖并构建。最低要求 Node.js 22.13；已验证的运行环境为 Node.js 24.16.0 与 npm 11.13.0，`.nvmrc` 记录了该 Node 版本。Windows PowerShell / macOS 终端均可运行：
 
 ```sh
 npm ci
 npm run build
 ```
 
-如 agent 的执行环境反复拒绝安装，请通过工具的正式权限流程处理，或由你在系统终端手动完成这两步；不要停用、修改或绕过 agent 的安全限制。
+精简源码仍需要这一次依赖安装，首次安装通常需要网络。若 agent 报 `CODEBUDDY_BROKER_DENY` 或文件权限拒绝：确认当前目录是本项目，申请一次正式授权；仍被拒绝时，停止反复重试或分析代理内部机制，给用户项目的完整路径，由用户在系统终端完成上述两步。不要停用、修改或绕过 agent 的安全限制。更换下载镜像不能解决文件写入权限拒绝。
 
 ### 以后使用：双击启动
 
 - **Mac：双击根目录的 `启动.command`。**
 - **Windows：双击根目录的 `启动.cmd`。**
 
-启动器会自动定位项目文件夹，启动本地服务并用系统默认浏览器打开 <http://localhost:3001/>。网页已在运行时只打开页面，不会再次启动服务。无需 agent，无需每日安装依赖或重新构建。也可以在项目目录运行 `node scripts/launch.mjs`。
+启动器会自动定位项目文件夹，启动本地服务并用系统默认浏览器打开 <http://localhost:3001/>。网页已在运行时只打开页面，不会再次启动服务。无需 agent，无需每日安装依赖或重新构建。也可以在项目目录运行 `node scripts/launch.mjs`。日常运行只用 Node 内置模块和构建好的 `dist`，不调用 npm、Vite 或任何云端工具，也无需网络下载依赖。
 
-请保留启动时出现的终端窗口，停止服务时按 **Ctrl+C**。仅关闭浏览器标签页不会停止服务；重复打开启动文件仍可进入网页。缺少 Node、依赖或构建结果时会显示提示，不会自动安装软件或修改系统权限。
+请保留启动时出现的终端窗口，停止服务时按 **Ctrl+C**。仅关闭浏览器标签页不会停止服务；重复打开启动文件仍可进入网页。缺少 Node、启动文件或构建结果时会显示提示，不会自动安装软件或修改系统权限。
 
 注意事项：
 
@@ -47,9 +49,24 @@ npm run build
 - 固定使用 `localhost:3001`，并用原来的浏览器及浏览器资料查看已有日志。自动打开的是系统默认浏览器；如果不是原浏览器，请手动在原浏览器打开同一地址。这不会迁移或删除任何数据。
 - 若端口被其他程序占用，启动器会停止并提示，不会杀掉无关进程或自动更换端口。初次启动尚未就绪时不要连续双击，稍等后再试。
 - 更新前先用 Ctrl+C 停止旧服务，更新源码后重新构建；依赖变化时先运行 `npm ci`。双击启动使用上次构建好的版本，不自动拉取更新。
-- 仍可使用原命令 `npm run start -- --port 3001`。排查问题或在 agent 中验证时，可用 `node scripts/launch.mjs --no-open`，只启动 / 检查服务，不自动打开浏览器。
+- 只启动服务可运行 `npm start`（兼容原命令 `npm run start -- --port 3001`）。排查问题或在 agent 中验证时，可用 `node scripts/launch.mjs --no-open`，只启动 / 检查服务，不自动打开浏览器。修改源码时可运行 `npm run dev`；开发服务和日常服务使用同一端口，不能同时运行。
 
 这不是可双击的单文件 HTML。不要直接打开源码文件，也不要用普通 HTTP 局域网地址分发。只使用本机 localhost 服务，不需要 Cloudflare 登录、云数据库或 API 密钥。发布本仓库不等于将网页部署到公网。
+
+### 从旧版升级
+
+先关闭旧版网页并在原终端按 Ctrl+C 停止服务，再更新源码，运行 `npm ci`、`npm run build`，然后双击启动文件。本次不需要迁移或重新设置密码：继续使用原浏览器、原资料和 `http://localhost:3001/`，已有加密日志会沿用。不要清理浏览器数据；如果旧服务没停，启动器会打开旧版本。
+
+## 技术结构
+
+- `app/page.tsx`、`components/`：原有 React 界面、表单、只读历史与图表。只保留页面实际使用的四个 UI 基础组件。
+- `lib/encrypted-vault.ts`：浏览器内加密、解锁及存储；本地服务器不接收日志。
+- `index.html`、`app/main.tsx`：网页入口，保留 `/` 和手动导入页 `/demo-data`。
+- `vite.config.ts`：将 TypeScript、React、Tailwind 样式打包成 `dist` 下的 HTML / CSS / JavaScript。构建同时做类型检查。
+- `scripts/serve.mjs`：Node 内置静态文件服务，只监听本机、固定端口 3001；不提供数据库或写入接口。
+- `scripts/launch.mjs`、`启动.command`、`启动.cmd`：启动检查、重复运行复用和自动打开浏览器。
+
+保留 React、Recharts、Base UI 和 Tailwind，是为了直接复用原有界面与交互，而无需重写。构建工具只用于开发与更新；浏览器原生 Web Crypto / Web Locks 继续负责加密和多标签页写入锁。Vite 的标准静态构建方式见[官方说明](https://vite.dev/guide/build.html)。
 
 ## 密码与迁移
 
@@ -72,18 +89,17 @@ npm run build
 ## 验证
 
 ```sh
-node --test test/privacy-pin.test.mjs test/encrypted-vault.test.mjs test/log-detail.test.mjs test/launcher.test.mjs
-npx tsc --noEmit --incremental false
+npm test
 npm run build
 ```
 
-加密测试使用隔离的内存数据，不读取用户浏览器。涵盖正确/错误密码、Unicode 和长文本、多标签页写入锁、加密迁移、容量不足、中断恢复、迁移冲突、删除失败、篡改拒绝、重复初始化和旧格式验证。启动器测试覆盖版本检查、中文与空格路径、端口识别、等待就绪、失败和超时。Windows 双击与 Safari 真机回归仍需验证；当前 macOS 环境不能代替这些系统的实测。
+加密测试使用隔离的内存数据，不读取用户浏览器。涵盖正确/错误密码、Unicode 和长文本、多标签页写入锁、加密迁移、容量不足、中断恢复、迁移冲突、删除失败、篡改拒绝、重复初始化和旧格式验证。启动器测试覆盖版本检查、中文与空格路径、端口识别、等待就绪、失败和超时；静态服务测试覆盖直接访问两条路由、资源类型、非法路径、外部 Host 和写入拒绝。Windows 双击与 Safari 真机回归仍需验证；当前 macOS 环境不能代替这些系统的实测。
 
 兼容性参考：[Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto)、[Web Locks](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API)。
 
 ## 仓库内容
 
-提交内容仅包含源码、界面资源、合成测试数据、锁文件和必要构建配置。`.openai/hosting.json` 是无凭据的构建配置，不能遗漏。`node_modules`、构建产物、`.wrangler`、`.env*`、日志及个人浏览器数据不应上传。
+提交内容仅包含源码、界面资源、合成测试数据、锁文件和必要构建配置。已移除 `.openai/hosting.json` 和所有云端托管配置。`node_modules`、构建产物、旧版 `.wrangler` 缓存、`.env*`、日志及个人浏览器数据不应上传。旧的组件与构建配置仍可从 Git 历史恢复。
 
 项目主要文件：`app/page.tsx`（主界面与分析）、`app/globals.css`（样式）、`components/log-detail.tsx`（只读详情）、`lib/encrypted-vault.ts`（本地加密）。
 

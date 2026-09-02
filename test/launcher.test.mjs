@@ -94,25 +94,17 @@ test('first-use messages are explicit; paths with Chinese and spaces are passed 
     assert.throws(() => serverCommand(root), /未找到项目/);
     await mkdir(root);
     await writeFile(join(root, 'package.json'), '{}');
-    assert.throws(() => serverCommand(root), /首次安装/);
-    await mkdir(join(root, 'node_modules/wrangler/bin'), { recursive: true });
-    await writeFile(join(root, 'node_modules/wrangler/bin/wrangler.js'), '');
+    assert.throws(() => serverCommand(root), /缺少本地启动服务/);
+    await mkdir(join(root, 'scripts'));
+    await writeFile(join(root, 'scripts/serve.mjs'), '');
     assert.throws(() => serverCommand(root), /首次构建/);
-    await mkdir(join(root, 'dist/server'), { recursive: true });
-    await writeFile(join(root, 'dist/server/wrangler.json'), '{}');
+    await mkdir(join(root, 'dist'));
+    await writeFile(join(root, 'dist/index.html'), '<title>情绪知了</title>');
     const command = serverCommand(root);
     assert.equal(command.command, process.execPath);
     assert.equal(command.cwd, root);
-    assert.equal(
-      command.args[0],
-      join(root, 'node_modules/wrangler/bin/wrangler.js'),
-    );
-    assert.deepEqual(command.args.slice(-4), [
-      '--ip',
-      '127.0.0.1',
-      '--port',
-      '3001',
-    ]);
+    assert.equal(command.args[0], join(root, 'scripts/serve.mjs'));
+    assert.equal(command.args.length, 1);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

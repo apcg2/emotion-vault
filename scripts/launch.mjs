@@ -1,15 +1,12 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import http from 'node:http';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
-export const APP_URL = 'http://localhost:3001/';
-export const PROJECT_ROOT = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-);
+import { APP_URL, PROJECT_ROOT } from './serve.mjs';
+export { APP_URL, PROJECT_ROOT };
 
 export function checkRuntime(version = process.versions.node) {
   const [major, minor] = version.split('.').map(Number);
@@ -26,33 +23,22 @@ export function checkRuntime(version = process.versions.node) {
 }
 
 export function serverCommand(root = PROJECT_ROOT) {
-  const cli = join(root, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
-  const config = join(root, 'dist', 'server', 'wrangler.json');
+  const cli = join(root, 'scripts', 'serve.mjs');
+  const index = join(root, 'dist', 'index.html');
   if (!existsSync(join(root, 'package.json')))
     throw new Error(
       '未找到项目，请将启动文件留在原项目文件夹内，不要单独移出。',
     );
   if (!existsSync(cli))
+    throw new Error('缺少本地启动服务，请完整下载项目，不要单独复制启动文件。');
+  if (!existsSync(index))
     throw new Error(
-      '尚未完成首次安装。请在项目文件夹运行 npm ci，再运行 npm run build，然后重新双击启动文件。',
-    );
-  if (!existsSync(config))
-    throw new Error(
-      '尚未完成首次构建。请在项目文件夹运行 npm run build，然后重新双击启动文件。',
+      '尚未完成首次构建。请在项目文件夹运行 npm ci 和 npm run build，然后重新双击启动文件。',
     );
   // Invoke Node directly: no npm.cmd shell quoting, global CLI, or package download.
   return {
     command: process.execPath,
-    args: [
-      cli,
-      'dev',
-      '--config',
-      config,
-      '--ip',
-      '127.0.0.1',
-      '--port',
-      '3001',
-    ],
+    args: [cli],
     cwd: root,
   };
 }
@@ -178,13 +164,6 @@ export async function launch({ open = true } = {}) {
     stdio: ['ignore', 'inherit', 'inherit'],
     detached: process.platform !== 'win32',
     windowsHide: true,
-    env: {
-      ...process.env,
-      WRANGLER_SEND_METRICS: 'false',
-      WRANGLER_WRITE_LOGS: 'false',
-      WRANGLER_LOG_PATH: join(cwd, '.wrangler', 'logs'),
-      MINIFLARE_REGISTRY_PATH: join(cwd, '.wrangler', 'registry'),
-    },
   });
   let ended = false;
   let failure;
