@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   copyFile,
   mkdir,
@@ -10,10 +10,8 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
 const wrapper = new URL('../启动.cmd', import.meta.url);
 
 test('Windows bootstrap uses ASCII and CRLF, with archive-safe Git attributes', async () => {
@@ -24,11 +22,12 @@ test('Windows bootstrap uses ASCII and CRLF, with archive-safe Git attributes', 
   );
   assert.ok(bytes.includes(Buffer.from('\r\n')));
   assert.doesNotMatch(bytes.toString(), /(?<!\r)\n|\r(?!\n)/);
-  const attr = execFileSync('git', ['check-attr', 'text', '--', '启动.cmd'], {
-    cwd: root,
-    encoding: 'utf8',
-  });
-  assert.match(attr, /text: unset/);
+  // ZIP users may not have Git; validate the policy without a Git dependency.
+  const attr = await readFile(
+    new URL('../.gitattributes', import.meta.url),
+    'utf8',
+  );
+  assert.match(attr, /^\*\.cmd\s+-text\b/m);
 });
 
 test(

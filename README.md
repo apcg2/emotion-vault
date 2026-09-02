@@ -105,7 +105,9 @@ npm test
 npm run build
 ```
 
-加密测试使用隔离的内存数据，不读取用户浏览器。涵盖正确/错误密码、Unicode 和长文本、多标签页写入锁、加密迁移、容量不足、中断恢复、迁移冲突、删除失败、篡改拒绝、重复初始化和旧格式验证。启动器测试覆盖版本检查、中文与空格路径、端口识别、等待就绪、失败和超时；静态服务测试覆盖直接访问两条路由、资源类型、非法路径、外部 Host 和写入拒绝。Windows 双击与 Safari 真机回归仍需验证；当前 macOS 环境不能代替这些系统的实测。
+加密测试使用隔离的内存数据，不读取用户浏览器。涵盖正确/错误密码、Unicode 和长文本、多标签页写入锁、加密迁移、容量不足、中断恢复、迁移冲突、删除失败、篡改拒绝、重复初始化和旧格式验证。启动器测试覆盖版本检查、中文与空格路径、端口识别、等待就绪、失败和超时；静态服务测试覆盖直接访问两条路由、资源类型、非法路径、外部 Host 和写入拒绝。
+
+仓库的 [Windows 自动化检查](https://github.com/apcg2/emotion-vault/actions/workflows/windows.yml) 会在 Windows 运行器中安装、测试和构建，实际调用 `cmd.exe` 执行启动文件，覆盖未安装 Node、PATH 中的 Node、默认安装目录、中文/空格/特殊字符路径及失败退出码。这不等同于资源管理器双击和浏览器完整交互回归；Windows 桌面与 Safari 的人工回归仍需验证。
 
 兼容性参考：[Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto)、[Web Locks](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API)。
 
