@@ -30,6 +30,12 @@ async function bundledLicenses(chunks) {
     const names = (await readdir(dir))
       .filter((name) => /^(licen[cs]e|notice)(?:[.-].*)?$/i.test(name))
       .sort();
+    if (pkg.name === 'victory-vendor') {
+      names.push(resolve(root, `licenses/victory-vendor-${pkg.version}.txt`));
+      for (const vendor of (await readdir(resolve(dir, 'lib-vendor'))).sort()) {
+        names.push(`lib-vendor/${vendor}/LICENSE`);
+      }
+    }
     if (!names.length)
       throw new Error(`License text missing for bundled package ${pkg.name}`);
     const texts = await Promise.all(
