@@ -119,8 +119,8 @@ export function PrivacyPinDialog({
         {mode === 'unavailable' ? (
           <>
             <p className="privacy-error" role="alert">
-              暂时无法启用加密。请检查存储权限，并使用最新版浏览器通过 localhost
-              或 HTTPS 打开。请勿清除原有数据。
+              暂时无法启用加密或读取已有数据。请用最新版 Chrome 或 Edge 打开
+              HTML，并检查本地存储权限。请勿清除原有数据。
             </p>
             <Button variant="outline" onClick={cancel}>
               返回首页
@@ -198,7 +198,7 @@ export function PrivacyPinDialog({
               </Button>
             </div>
             <p className="privacy-note">
-              内容加密保存在此浏览器，日历日期仍可见。密码遗忘后无法恢复；四位数字仅适合基础隐私保护，无法抵御专业离线破解。清除浏览器数据会丢失日志。
+              内容加密保存在此浏览器，日历日期仍可见。密码遗忘后无法恢复；四位数字仅适合基础隐私保护，无法抵御专业离线破解。请在首页定期下载加密备份，清除浏览器数据会丢失日志。
             </p>
           </form>
         )}

@@ -1,20 +1,23 @@
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import Home from './page';
 import DemoDataPage from './demo-data/page';
 import './globals.css';
 
-// The main app keeps its existing view state. Demo import remains explicit.
-const path = window.location.pathname.replace(/\/$/, '') || '/';
-const content =
-  path === '/demo-data' ? (
+function App() {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const changed = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', changed);
+    return () => window.removeEventListener('hashchange', changed);
+  }, []);
+  // Hash navigation works after moving/renaming the HTML, without a web server.
+  return hash === '#demo-data' ||
+    (!hash && window.location.pathname === '/demo-data') ? (
     <DemoDataPage />
-  ) : path === '/' || path === '/index.html' ? (
-    <Home />
   ) : (
-    <main className="app-shell">
-      <h1>页面不存在</h1>
-      <a href="/">返回首页</a>
-    </main>
+    <Home />
   );
+}
 
-createRoot(document.getElementById('root')!).render(content);
+createRoot(document.getElementById('root')!).render(<App />);

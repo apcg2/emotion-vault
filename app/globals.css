@@ -1281,3 +1281,56 @@
     gap: 6px;
   }
 }
+/* Portable HTML: a quiet backup entry, without changing the original form layout. */
+.storage-footer {
+  margin: 24px auto 0;
+  max-width: 440px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.storage-footer button {
+  color: #556a5b;
+  font-size: 14px;
+  padding: 8px 16px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.storage-footer button:focus-visible {
+  outline: 2px solid #556a5b;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.backup-dialog {
+  max-height: min(90dvh, 800px);
+  overflow-y: auto;
+}
+.backup-section {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+.backup-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.backup-section p,
+.backup-status {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #6b7280;
+}
+.backup-file {
+  width: 100%;
+  min-width: 0;
+  font-size: 13px;
+  padding: 10px 0;
+}
+.backup-status {
+  color: #44674a;
+}

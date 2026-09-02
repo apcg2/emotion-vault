@@ -8,13 +8,13 @@ import {
   verifyPin,
 } from '../lib/privacy-pin.ts';
 
-test('only exactly four numeric digits are accepted, including leading zeroes', () => {
+void test('only exactly four numeric digits are accepted, including leading zeroes', () => {
   assert.equal(isValidPin('0042'), true);
   for (const value of ['', '123', '12345', '12a4', ' 1234', '１２３４'])
     assert.equal(isValidPin(value), false);
 });
 
-test('credential persists without the plain PIN; valid and wrong PINs differ', async () => {
+void test('credential persists without the plain PIN; valid and wrong PINs differ', async () => {
   const credential = await createPinCredential('0042');
   const saved = new Map([[PRIVACY_PIN_KEY, JSON.stringify(credential)]]);
   const restored = readPinCredential({
@@ -28,7 +28,7 @@ test('credential persists without the plain PIN; valid and wrong PINs differ', a
   assert.equal(await verifyPin('42', restored), false);
 });
 
-test('the same PIN uses a fresh salt for each setup', async () => {
+void test('the same PIN uses a fresh salt for each setup', async () => {
   const first = await createPinCredential('1234');
   const second = await createPinCredential('1234');
   assert.notEqual(first.salt, second.salt);
@@ -36,7 +36,7 @@ test('the same PIN uses a fresh salt for each setup', async () => {
   await assert.rejects(createPinCredential('abc1'));
 });
 
-test('only absence starts setup; malformed or inaccessible storage fails closed', () => {
+void test('only absence starts setup; malformed or inaccessible storage fails closed', () => {
   assert.equal(readPinCredential({ getItem: () => null }), null);
   for (const raw of [
     '',

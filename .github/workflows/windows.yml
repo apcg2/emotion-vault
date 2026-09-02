@@ -1,4 +1,4 @@
-name: Windows startup
+name: HTML build (Windows and macOS)
 
 on:
   push:
@@ -10,12 +10,12 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  html:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
-    defaults:
-      run:
-        shell: cmd
     steps:
       - uses: actions/checkout@v7
         with:
@@ -26,7 +26,9 @@ jobs:
           package-manager-cache: false
       - name: Install source dependencies
         run: npm ci --no-audit --no-fund
-      - name: Test encryption, local server and Windows batch startup
+      - name: Lint source
+        run: npm run lint
+      - name: Test encryption, backups and single-file packaging
         run: npm test
       - name: Build the app
         run: npm run build

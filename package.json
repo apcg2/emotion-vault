@@ -1,14 +1,13 @@
 {
   "name": "emotion-vault",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "start": "node scripts/serve.mjs",
+    "build": "tsc --noEmit && node scripts/build-html.mjs",
     "test": "node --test test/*.test.mjs",
     "lint": "oxlint",
     "format": "oxfmt"

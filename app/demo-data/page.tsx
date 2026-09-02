@@ -13,7 +13,7 @@ export default function DemoDataPage() {
   return (
     <main className="min-h-screen bg-[#F5F3EF] text-[#1F2937]">
       <div className="app-shell">
-        <a className="back-link" href="/">
+        <a className="back-link" href="#home">
           ← 返回首页
         </a>
         <h1 className="page-title">近一周模拟数据</h1>
@@ -52,11 +52,7 @@ export default function DemoDataPage() {
           >
             {busy ? '加密导入中…' : '添加此前一周模拟数据'}
           </Button>
-          {message && (
-            <p className="notice" role="status">
-              {message}
-            </p>
-          )}
+          {message && <output className="notice">{message}</output>}
         </section>
       </div>
     </main>

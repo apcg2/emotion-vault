@@ -38,3 +38,5 @@ next-env.d.ts
 /work/
 *.tsbuildinfo
 *.log
+# User-exported encrypted backups are never source artifacts.
+emotion-vault-backup-*.json

@@ -7,6 +7,7 @@ import {
 
 export const VAULT_KEY = 'moodflow_encrypted_vault_v1';
 export const LEGACY_LOG_KEY = 'moodflow_logs';
+export const BACKUP_MAX_BYTES = 16 * 1024 * 1024;
 const ITERATIONS = 600_000;
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export type MoodLog = {
@@ -53,7 +54,7 @@ export const vaultError = (e: unknown) =>
 export function assertEncryptionAvailable() {
   if (!globalThis.crypto?.subtle || !globalThis.navigator?.locks)
     fail(
-      '此浏览器无法安全加密。请使用最新版 Chrome、Edge、Firefox 或 Safari，通过 localhost 或 HTTPS 打开。不会改为明文保存。',
+      '此浏览器无法安全加密。请使用最新版 Chrome 或 Edge 打开 HTML，并允许本地存储；不会改为明文保存。',
     );
 }
 function readVault(storage: Store): Vault | null {
@@ -248,7 +249,19 @@ const digest = async (s: string) =>
 // All tabs of this origin share this lock; writes always reread the latest envelope.
 async function exclusive<T>(fn: () => Promise<T>) {
   assertEncryptionAvailable();
-  return navigator.locks.request('moodflow-encrypted-vault', fn);
+  let acquired = false;
+  try {
+    return await navigator.locks.request('moodflow-encrypted-vault', () => {
+      acquired = true;
+      return fn();
+    });
+  } catch (error) {
+    if (!acquired)
+      return fail(
+        '浏览器不允许安全写入此页面。请用最新版 Chrome 或 Edge 打开，并检查存储权限。未修改日志。',
+      );
+    throw error;
+  }
 }
 function persist(storage: Store, vault: Vault) {
   const raw = JSON.stringify(vault);
@@ -275,6 +288,24 @@ async function finishMigration(storage: Store, v: Vault) {
   }
   storage.removeItem(PRIVACY_PIN_KEY);
 }
+async function openPrivateKey(v: Vault, pin: string) {
+  try {
+    const raw = await unseal(
+      await pinKey(pin, v.salt),
+      v.privateKey,
+      privateContext(v),
+    );
+    return await crypto.subtle.importKey(
+      'pkcs8',
+      raw,
+      { name: 'RSA-OAEP', hash: 'SHA-256' },
+      false,
+      ['unwrapKey'],
+    );
+  } catch {
+    return fail('密码不正确，或加密数据已损坏。请重试；不要清除浏览器数据。');
+  }
+}
 export async function unlockVault(
   storage: Store,
   pin: string,
@@ -289,24 +320,7 @@ export async function unlockVault(
     let v = readVault(storage);
     let privateKey: CryptoKey;
     if (v) {
-      try {
-        const raw = await unseal(
-          await pinKey(pin, v.salt),
-          v.privateKey,
-          privateContext(v),
-        );
-        privateKey = await crypto.subtle.importKey(
-          'pkcs8',
-          raw,
-          { name: 'RSA-OAEP', hash: 'SHA-256' },
-          false,
-          ['unwrapKey'],
-        );
-      } catch {
-        return fail(
-          '密码不正确，或加密数据已损坏。请重试；不要清除浏览器数据。',
-        );
-      }
+      privateKey = await openPrivateKey(v, pin);
     } else {
       const legacyPin = readPinCredential(storage);
       if (legacyPin && !(await verifyPin(pin, legacyPin)))
@@ -435,5 +449,97 @@ export async function importDemoLogs(storage: Store, logs: MoodLog[]) {
     for (const log of pending) v.records.push(await sealLog(v, log));
     if (pending.length) persist(storage, v);
     return pending.length;
+  });
+}
+
+// Explicit fields only: never copy unknown values or legacy plaintext into a backup.
+function portableVault(v: Vault): Vault {
+  return {
+    version: 1,
+    id: v.id,
+    salt: v.salt,
+    iterations: v.iterations,
+    publicKey: v.publicKey,
+    privateKey: { iv: v.privateKey.iv, data: v.privateKey.data },
+    records: v.records.map(({ id, ts, iv, data, key }) => ({
+      id,
+      ts,
+      iv,
+      data,
+      key,
+    })),
+    legacyDigest: v.legacyDigest,
+  };
+}
+export function canRestoreBackup(storage: Store) {
+  return [VAULT_KEY, LEGACY_LOG_KEY, PRIVACY_PIN_KEY].every(
+    (key) => storage.getItem(key) === null,
+  );
+}
+export function exportEncryptedBackup(storage: Store): string {
+  const v = readVault(storage);
+  if (!v)
+    return fail(
+      '暂无加密数据可备份。若有旧日志，请先进入历史记录完成加密迁移。',
+    );
+  if (
+    storage.getItem(LEGACY_LOG_KEY) !== null ||
+    storage.getItem(PRIVACY_PIN_KEY) !== null
+  )
+    return fail('请先解锁历史记录，完成旧数据迁移后再备份。');
+  return JSON.stringify({
+    format: 'emotion-vault-backup',
+    version: 1,
+    createdAt: new Date().toISOString(),
+    vault: portableVault(v),
+  });
+}
+export async function restoreEncryptedBackup(
+  storage: Store,
+  text: string,
+  pin: string,
+  active = () => true,
+): Promise<number> {
+  if (!isValidPin(pin)) return fail('请输入备份原来的四位数字密码。');
+  if (encode(text).byteLength > BACKUP_MAX_BYTES)
+    return fail('备份文件过大，未修改任何数据。');
+  let v: Vault;
+  try {
+    const backup = JSON.parse(text);
+    if (
+      backup?.format !== 'emotion-vault-backup' ||
+      backup.version !== 1 ||
+      !backup.vault
+    )
+      throw new Error('format');
+    const candidate = readVault({
+      getItem: () => JSON.stringify(backup.vault),
+      setItem() {},
+      removeItem() {},
+    });
+    if (!candidate) throw new Error('empty');
+    v = portableVault(candidate);
+  } catch {
+    return fail('这不是有效的情绪知了加密备份，未修改任何数据。');
+  }
+  return exclusive(async () => {
+    const check = () => {
+      if (!active()) return fail('操作已取消。');
+      if (!canRestoreBackup(storage))
+        return fail(
+          '当前已有数据或密码，恢复已停止，不会覆盖。请使用未使用过的独立浏览器资料恢复。',
+        );
+    };
+    check();
+    const privateKey = await openPrivateKey(v, pin);
+    try {
+      await openLogs(v, privateKey);
+    } catch {
+      return fail('备份记录解密校验失败，未修改任何数据。');
+    }
+    // Recheck after expensive decryption: cancellation or an old tab must not be overwritten.
+    check();
+    persist(storage, v);
+    return v.records.length;
   });
 }

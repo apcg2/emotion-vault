@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { PrivacyPinDialog } from '@/components/privacy-pin-dialog';
+import { BackupDialog } from '@/components/backup-dialog';
 import { LogDetail } from '@/components/log-detail';
 import { PRIVACY_PIN_KEY } from '@/lib/privacy-pin';
 import {
@@ -179,13 +180,20 @@ const blank = () => ({
 });
 export default function Home() {
   const [logs, setLogs] = useState<Log[]>([]),
-    [view, setView] = useState<View>('home'),
-    [ready, setReady] = useState(false);
+    [view, setView] = useState<View>('home');
   // Deliberately memory-only: refresh, reopening, and restored pages require a PIN.
   const [session, setSession] = useState<VaultSession | null>(null);
   const privacyUnlocked = !!session;
-  const [calendar, setCalendar] = useState<{ ts: string }[]>([]);
-  const [storageError, setStorageError] = useState('');
+  const [initial] = useState(() => {
+    try {
+      return { calendar: calendarRecords(localStorage), error: '' };
+    } catch (e) {
+      return { calendar: [], error: vaultError(e) };
+    }
+  });
+  const [calendar, setCalendar] = useState<{ ts: string }[]>(initial.calendar);
+  const [storageError, setStorageError] = useState(initial.error);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [pendingView, setPendingView] = useState<ProtectedView | 'log' | null>(
     null,
   );
@@ -199,15 +207,12 @@ export default function Home() {
     }
   };
   useEffect(() => {
-    refreshCalendar();
-    setReady(true);
-  }, []);
-  useEffect(() => {
     const lock = () => {
       generation.current++;
       setSession(null);
       setLogs([]);
       setPendingView(null);
+      setBackupOpen(false);
       setView((current) =>
         current === 'history' || current === 'analysis' ? 'home' : current,
       );
@@ -244,7 +249,6 @@ export default function Home() {
       setStorageError(vaultError(e));
     }
   };
-  if (!ready) return <main className="min-h-screen bg-[#F5F3EF]" />;
   return (
     <main className="min-h-screen bg-[#F5F3EF] text-[#1F2937]">
       <div className="app-shell">
@@ -264,6 +268,7 @@ export default function Home() {
             onLog={startLog}
             onHistory={() => openProtectedView('history')}
             onAnalysis={() => openProtectedView('analysis')}
+            onBackup={() => setBackupOpen(true)}
           />
         )}{' '}
         {view === 'log' && (
@@ -295,6 +300,17 @@ export default function Home() {
           />
         )}{' '}
         {privacyUnlocked && view === 'analysis' && <AnalysisPage logs={logs} />}
+        {backupOpen && (
+          <BackupDialog
+            onClose={() => setBackupOpen(false)}
+            onRestored={() => {
+              generation.current++;
+              setSession(null);
+              setLogs([]);
+              refreshCalendar();
+            }}
+          />
+        )}
         {pendingView && (
           <PrivacyPinDialog
             destination={
@@ -324,11 +340,13 @@ function HomePage({
   onLog,
   onHistory,
   onAnalysis,
+  onBackup,
 }: {
   logs: { ts: string }[];
   onLog: () => void;
   onHistory: () => void;
   onAnalysis: () => void;
+  onBackup: () => void;
 }) {
   const [mode, setMode] = useState<'week' | 'month'>('week'),
     [offset, setOffset] = useState(0);
@@ -455,6 +473,12 @@ function HomePage({
           历史记录 <span>→</span>
         </button>
       </section>
+      <footer className="storage-footer">
+        <button onClick={onBackup}>备份与恢复</button>
+        <p>
+          日志加密保存在此浏览器，不在 HTML 文件中。请定期备份，勿用无痕模式。
+        </p>
+      </footer>
     </>
   );
 }
@@ -568,10 +592,9 @@ function LogPage({ onSave }: { onSave: (log: Log) => Promise<void> }) {
                   ))}
                 </div>
                 {expanded && (
-                  <div
+                  <fieldset
                     className="emotion-options"
                     id={`emotion-options-${start}`}
-                    role="group"
                     aria-label={`${expanded[0]}的具体情绪`}
                   >
                     {expanded[0] === '其他' ? (
@@ -600,7 +623,7 @@ function LogPage({ onSave }: { onSave: (log: Log) => Promise<void> }) {
                         </Button>
                       ))
                     )}
-                  </div>
+                  </fieldset>
                 )}
               </div>
             );
