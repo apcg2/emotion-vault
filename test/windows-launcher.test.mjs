@@ -63,7 +63,8 @@ test(
     Object.assign(env, {
       Path: join(process.env.SystemRoot, 'System32'),
       ProgramFiles: programFiles,
-      ProgramW6432: join(temporary, 'missing-program-files'),
+      // cmd.exe derives native ProgramFiles from ProgramW6432 on 64-bit Windows.
+      ProgramW6432: programFiles,
       LocalAppData: join(temporary, 'missing-local-app-data'),
       NVM_SYMLINK: join(temporary, 'missing-nvm'),
     });
@@ -132,22 +133,6 @@ test(
             join(programFiles, 'nodejs/node.exe'),
           );
           const result = run();
-          if (result.status !== 0) {
-            const diagnosis = spawnSync(
-              process.env.ComSpec || 'cmd.exe',
-              [
-                '/d',
-                '/s',
-                '/c',
-                'set Program & set LocalAppData & set NVM_SYMLINK',
-              ],
-              { cwd: temporary, env, encoding: 'utf8' },
-            );
-            t.diagnostic(
-              `Fixture install: ${join(programFiles, 'nodejs/node.exe')}`,
-            );
-            t.diagnostic(diagnosis.stdout + diagnosis.stderr);
-          }
           verify(result, 0);
           assert.ok(result.stdout.includes(marker), result.stdout);
         },
