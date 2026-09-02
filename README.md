@@ -6,7 +6,7 @@
 
 复制以下提示词即可使用（需要固定版本时，也可以将仓库地址换为具体 commit 的链接）：
 
-> 请下载并在我的本地电脑运行这个项目：https://github.com/apcg2/emotion-vault 。直接使用完整源码，保持原版 UI、功能、字段和交互，不重新设计或改写。根据 Windows 或 macOS 环境，按 README 安装依赖、启动并检查网页，告诉我访问地址和下次启动方式。保留本地加密和密码保护，不覆盖已有数据，不导入模拟记录，不部署到云端。需要授权或输入密码时由我操作；如果你只能访问云端容器，请先告知。
+> 请下载并在我的本地电脑运行这个项目：https://github.com/apcg2/emotion-vault 。直接使用完整源码，保持原版 UI、功能、字段和交互，不重新设计或改写。根据 Windows 或 macOS 环境，按 README 完成首次安装和构建，再使用仓库自带的启动文件，告诉我访问地址和以后双击启动的方法。保留本地加密和密码保护，不覆盖已有数据，不导入模拟记录，不部署到云端。需要授权或输入密码时由我操作；如果你只能访问云端容器，请先告知。
 
 ## 包含的功能
 
@@ -20,15 +20,34 @@
 
 使用最新版 Chrome、Edge、Firefox 或 Safari，通过固定的 `http://localhost:3001/` 或 HTTPS 地址访问。加密由浏览器 Web Crypto 完成，不依赖 Windows 凭据管理器、Mac 钥匙串或某台电脑的文件路径。需要 Web Crypto、Web Locks 和可用的本地存储；不满足条件会提示错误，不会退回明文。
 
-先下载或克隆本仓库，进入包含 `package.json` 的目录。已验证的运行环境为 Node.js 24.16.0 与 npm 11.13.0；`.nvmrc` 记录了该 Node 版本。Windows PowerShell / macOS 终端均可运行：
+### 首次准备（只需一次）
+
+先下载或克隆本仓库并完整解压，安装 Node.js 24。进入包含 `package.json` 的目录，安装依赖并构建。已验证的运行环境为 Node.js 24.16.0 与 npm 11.13.0；`.nvmrc` 记录了该 Node 版本。Windows PowerShell / macOS 终端均可运行：
 
 ```sh
 npm ci
 npm run build
-npm run start -- --port 3001
 ```
 
-启动成功后打开 <http://localhost:3001/>，终端需保持运行。停止时在该终端按 Ctrl+C；下次在同一目录运行 `npm run start -- --port 3001` 即可。更新源码后重新安装依赖并构建。端口被其他程序占用时不要直接关闭它；更换端口会使用不同的浏览器数据空间。
+如 agent 的执行环境反复拒绝安装，请通过工具的正式权限流程处理，或由你在系统终端手动完成这两步；不要停用、修改或绕过 agent 的安全限制。
+
+### 以后使用：双击启动
+
+- **Mac：双击根目录的 `启动.command`。**
+- **Windows：双击根目录的 `启动.cmd`。**
+
+启动器会自动定位项目文件夹，启动本地服务并用系统默认浏览器打开 <http://localhost:3001/>。网页已在运行时只打开页面，不会再次启动服务。无需 agent，无需每日安装依赖或重新构建。也可以在项目目录运行 `node scripts/launch.mjs`。
+
+请保留启动时出现的终端窗口，停止服务时按 **Ctrl+C**。仅关闭浏览器标签页不会停止服务；重复打开启动文件仍可进入网页。缺少 Node、依赖或构建结果时会显示提示，不会自动安装软件或修改系统权限。
+
+注意事项：
+
+- 启动文件必须留在项目根目录，可以创建快捷方式 / 替身，不能只把文件移到桌面。Windows 请先解压整个项目，不要直接在压缩包里双击。
+- Mac 下载后如果提示文件不可执行，可在项目目录运行 `chmod +x 启动.command`；遇到系统安全提示应先确认来源，启动器不会自动关闭安全保护。
+- 固定使用 `localhost:3001`，并用原来的浏览器及浏览器资料查看已有日志。自动打开的是系统默认浏览器；如果不是原浏览器，请手动在原浏览器打开同一地址。这不会迁移或删除任何数据。
+- 若端口被其他程序占用，启动器会停止并提示，不会杀掉无关进程或自动更换端口。初次启动尚未就绪时不要连续双击，稍等后再试。
+- 更新前先用 Ctrl+C 停止旧服务，更新源码后重新构建；依赖变化时先运行 `npm ci`。双击启动使用上次构建好的版本，不自动拉取更新。
+- 仍可使用原命令 `npm run start -- --port 3001`。排查问题或在 agent 中验证时，可用 `node scripts/launch.mjs --no-open`，只启动 / 检查服务，不自动打开浏览器。
 
 这不是可双击的单文件 HTML。不要直接打开源码文件，也不要用普通 HTTP 局域网地址分发。只使用本机 localhost 服务，不需要 Cloudflare 登录、云数据库或 API 密钥。发布本仓库不等于将网页部署到公网。
 
@@ -53,12 +72,12 @@ npm run start -- --port 3001
 ## 验证
 
 ```sh
-node --test test/privacy-pin.test.mjs test/encrypted-vault.test.mjs test/log-detail.test.mjs
+node --test test/privacy-pin.test.mjs test/encrypted-vault.test.mjs test/log-detail.test.mjs test/launcher.test.mjs
 npx tsc --noEmit --incremental false
 npm run build
 ```
 
-加密测试使用隔离的内存数据，不读取用户浏览器。涵盖正确/错误密码、Unicode 和长文本、多标签页写入锁、加密迁移、容量不足、中断恢复、迁移冲突、删除失败、篡改拒绝、重复初始化和旧格式验证。Windows / Safari 真机回归仍需在发布前完成；当前环境不能代替这些系统的实测。
+加密测试使用隔离的内存数据，不读取用户浏览器。涵盖正确/错误密码、Unicode 和长文本、多标签页写入锁、加密迁移、容量不足、中断恢复、迁移冲突、删除失败、篡改拒绝、重复初始化和旧格式验证。启动器测试覆盖版本检查、中文与空格路径、端口识别、等待就绪、失败和超时。Windows 双击与 Safari 真机回归仍需验证；当前 macOS 环境不能代替这些系统的实测。
 
 兼容性参考：[Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto)、[Web Locks](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API)。
 
@@ -67,3 +86,5 @@ npm run build
 提交内容仅包含源码、界面资源、合成测试数据、锁文件和必要构建配置。`.openai/hosting.json` 是无凭据的构建配置，不能遗漏。`node_modules`、构建产物、`.wrangler`、`.env*`、日志及个人浏览器数据不应上传。
 
 项目主要文件：`app/page.tsx`（主界面与分析）、`app/globals.css`（样式）、`components/log-detail.tsx`（只读详情）、`lib/encrypted-vault.ts`（本地加密）。
+
+启动器使用 Node.js 内置模块，不增加依赖。[进程启动参考](https://nodejs.org/docs/latest-v24.x/api/child_process.html)、[Windows 默认浏览器打开方式](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/start)。
