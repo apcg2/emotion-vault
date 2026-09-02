@@ -1,9 +1,48 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+async function bundledLicenses(chunks) {
+  const packageRoots = new Set([
+    resolve(root, 'node_modules/tailwindcss'),
+    resolve(root, 'node_modules/tw-animate-css'),
+  ]);
+  for (const chunk of chunks) {
+    for (const id of chunk.moduleIds) {
+      const normalized = id.replaceAll('\\', '/');
+      const marker = '/node_modules/';
+      const start = normalized.lastIndexOf(marker);
+      if (start < 0) continue;
+      const parts = normalized.slice(start + marker.length).split('/');
+      const name = parts.slice(0, parts[0].startsWith('@') ? 2 : 1).join('/');
+      packageRoots.add(
+        resolve(normalized.slice(0, start + marker.length) + name),
+      );
+    }
+  }
+  const notices = [];
+  for (const dir of packageRoots) {
+    const pkg = JSON.parse(
+      await readFile(resolve(dir, 'package.json'), 'utf8'),
+    );
+    const names = (await readdir(dir))
+      .filter((name) => /^(licen[cs]e|notice)(?:[.-].*)?$/i.test(name))
+      .sort();
+    if (!names.length)
+      throw new Error(`License text missing for bundled package ${pkg.name}`);
+    const texts = await Promise.all(
+      names.map((name) => readFile(resolve(dir, name), 'utf8')),
+    );
+    notices.push(`${pkg.name}@${pkg.version}\n${texts.join('\n\n')}`);
+  }
+  return notices
+    .sort()
+    .join('\n\n========================================\n\n');
+}
+const escapeHtml = (text) =>
+  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 export async function buildHtml(outDir = resolve(root, 'dist')) {
   const result = await build({
     root,
@@ -44,6 +83,7 @@ export async function buildHtml(outDir = resolve(root, 'dist')) {
     .replace(/<\/style/gi, '<\\/style');
   const icon = await readFile(resolve(root, 'public/favicon.svg'));
   const template = await readFile(resolve(root, 'index.html'), 'utf8');
+  const licenses = await bundledLicenses(scripts);
   const html = template
     .replace(
       '<head>',
@@ -57,6 +97,11 @@ export async function buildHtml(outDir = resolve(root, 'dist')) {
     .replace(
       '<script type="module" src="/app/main.tsx"></script>',
       () => `<script>${script}</script>`,
+    )
+    .replace(
+      '</body>',
+      () =>
+        `<pre id="third-party-notices" hidden>${escapeHtml(licenses)}</pre>\n</body>`,
     );
   if (/<(?:script|link)\b[^>]*(?:src|href)=["'](?!data:)[^"']+["']/i.test(html))
     throw new Error('External runtime resource remains in HTML.');

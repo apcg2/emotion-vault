@@ -15,6 +15,16 @@ void test('build produces one offline HTML in a Unicode/spaces path, with no mod
     assert.match(html, /<title>情绪知了<\/title>/);
     assert.match(html, /href="data:image\/svg\+xml;base64,/);
     assert.match(html, /connect-src 'none'/);
+    assert.match(html, /id="third-party-notices" hidden/);
+    assert.match(html, /Permission is hereby granted/);
+    for (const name of [
+      'react@19',
+      'recharts@3',
+      '@base-ui/react@1',
+      'tailwindcss@4',
+      'lucide-react@',
+    ])
+      assert.ok(html.includes(name), `Missing license: ${name}`);
     assert.doesNotMatch(
       html,
       /<(?:script|link)\b[^>]*(?:src|href)=["'](?!data:)[^"']+["']/i,
