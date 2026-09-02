@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import type { MoodLog } from '@/lib/encrypted-vault';
+import type { MoodLog } from '@/lib/local-file';
 
 export function LogDetail({
   log,

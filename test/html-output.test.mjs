@@ -43,12 +43,17 @@ void test('build produces one offline HTML in a Unicode/spaces path, with no mod
       '历史记录',
       '情绪分析',
       '认知扭曲',
-      '备份与恢复',
-      'emotion-vault-backup',
+      '新建日志文件',
+      '打开日志文件',
+      'emotion-logs',
       '#demo-data',
     ])
       assert.ok(html.includes(text), text);
     assert.ok(Buffer.byteLength(html) < 2 * 1024 * 1024);
+    assert.doesNotMatch(
+      scripts[0][1],
+      /localStorage|sessionStorage|indexedDB|moodflow_encrypted_vault|PBKDF2|RSA-OAEP|设置四位数字密码/,
+    );
   } finally {
     await rm(dir, { recursive: true, force: true }); // Only this test's mkdtemp directory.
   }

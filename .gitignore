@@ -40,3 +40,6 @@ next-env.d.ts
 *.log
 # User-exported encrypted backups are never source artifacts.
 emotion-vault-backup-*.json
+emotion-logs*.json
+/data/
+/我的日志/

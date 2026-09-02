@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { importDemoLogs, vaultError } from '@/lib/encrypted-vault';
+import { localLogFile, fileError } from '@/lib/local-file';
 import { previousWeekDemoLogs } from '@/lib/demo-logs';
 
 export default function DemoDataPage() {
@@ -23,7 +23,7 @@ export default function DemoDataPage() {
             天、每天一条的模拟日志，包含不同情绪、变化幅度、认知扭曲和积极回应。所有记录标注“模拟数据”，会参与历史与分析展示，可在历史记录中逐条删除。
           </p>
           <p className="detail-text">
-            使用现有加密设置，不覆盖真实日志。相同日期的模拟数据不会重复导入。
+            请先在首页新建或打开日志文件；仅在你点击后写入明文模拟记录，不重复导入相同日期的数据。
           </p>
           <Button
             className="save-button"
@@ -35,22 +35,29 @@ export default function DemoDataPage() {
               setMessage('');
               try {
                 const logs = previousWeekDemoLogs();
-                const added = await importDemoLogs(localStorage, logs);
+                let added = 0;
+                await localLogFile.update((existing) => {
+                  const pending = logs.filter(
+                    (log) => !existing.some((item) => item.id === log.id),
+                  );
+                  added = pending.length;
+                  return [...existing, ...pending];
+                });
                 const date = (ts: string) =>
                   new Date(ts).toLocaleDateString('zh-CN');
                 setMessage(
-                  `已加密添加 ${added} 条模拟日志（${date(logs[0].ts)} 至 ${date(logs[6].ts)}）。${7 - added} 条已有模拟日志未重复添加。`,
+                  `已保存 ${added} 条模拟日志（${date(logs[0].ts)} 至 ${date(logs[6].ts)}）。${7 - added} 条已有模拟日志未重复添加。`,
                 );
                 setDone(true);
               } catch (e) {
-                setMessage(vaultError(e));
+                setMessage(fileError(e));
               } finally {
                 running.current = false;
                 setBusy(false);
               }
             }}
           >
-            {busy ? '加密导入中…' : '添加此前一周模拟数据'}
+            {busy ? '写入文件中…' : '添加此前一周模拟数据'}
           </Button>
           {message && <output className="notice">{message}</output>}
         </section>

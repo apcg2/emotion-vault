@@ -19,20 +19,13 @@ import {
   YAxis,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { PrivacyPinDialog } from '@/components/privacy-pin-dialog';
-import { BackupDialog } from '@/components/backup-dialog';
 import { LogDetail } from '@/components/log-detail';
-import { PRIVACY_PIN_KEY } from '@/lib/privacy-pin';
 import {
-  appendLog,
-  calendarRecords,
-  deleteLog,
-  hasVault,
-  LEGACY_LOG_KEY,
-  VAULT_KEY,
-  vaultError,
-  type VaultSession,
-} from '@/lib/encrypted-vault';
+  chooseLogFile,
+  localLogFile,
+  supportsLocalFiles,
+  fileError,
+} from '@/lib/local-file';
 import {
   Dialog,
   DialogContent,
@@ -66,7 +59,6 @@ type Log = {
   responses: Response[];
 };
 type View = 'home' | 'log' | 'history' | 'analysis';
-type ProtectedView = 'history' | 'analysis';
 const GROUPS = [
   ['悲伤', ['忧郁', '沮丧', '消沉', '难过']],
   ['焦虑', ['担忧', '惊恐', '紧张', '害怕']],
@@ -179,84 +171,69 @@ const blank = () => ({
   responses: [{ text: '', belief: 50 }] as Response[],
 });
 export default function Home() {
-  const [logs, setLogs] = useState<Log[]>([]),
-    [view, setView] = useState<View>('home');
-  // Deliberately memory-only: refresh, reopening, and restored pages require a PIN.
-  const [session, setSession] = useState<VaultSession | null>(null);
-  const privacyUnlocked = !!session;
-  const [initial] = useState(() => {
-    try {
-      return { calendar: calendarRecords(localStorage), error: '' };
-    } catch (e) {
-      return { calendar: [], error: vaultError(e) };
-    }
-  });
-  const [calendar, setCalendar] = useState<{ ts: string }[]>(initial.calendar);
-  const [storageError, setStorageError] = useState(initial.error);
-  const [backupOpen, setBackupOpen] = useState(false);
-  const [pendingView, setPendingView] = useState<ProtectedView | 'log' | null>(
-    null,
-  );
-  const generation = useRef(0);
-  const refreshCalendar = () => {
-    try {
-      setCalendar(calendarRecords(localStorage));
-      setStorageError('');
-    } catch (e) {
-      setStorageError(vaultError(e));
-    }
-  };
+  const [logs, setLogs] = useState<Log[]>(() => localLogFile.logs);
+  const [view, setView] = useState<View>('home');
+  const [name, setName] = useState(localLogFile.name);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const selecting = useRef(false);
   useEffect(() => {
-    const lock = () => {
-      generation.current++;
-      setSession(null);
-      setLogs([]);
-      setPendingView(null);
-      setBackupOpen(false);
-      setView((current) =>
-        current === 'history' || current === 'analysis' ? 'home' : current,
-      );
-    };
-    const restore = (event: PageTransitionEvent) => {
-      if (event.persisted) lock();
-    };
-    const changed = (event: StorageEvent) => {
-      if (
-        [PRIVACY_PIN_KEY, VAULT_KEY, LEGACY_LOG_KEY, null].includes(event.key)
-      ) {
-        lock();
-        refreshCalendar();
+    const leaving = (event: BeforeUnloadEvent) => {
+      if (localLogFile.isBusy || selecting.current) {
+        event.preventDefault();
       }
     };
-    window.addEventListener('pagehide', lock);
-    window.addEventListener('pageshow', restore);
-    window.addEventListener('storage', changed);
-    return () => {
-      window.removeEventListener('pagehide', lock);
-      window.removeEventListener('pageshow', restore);
-      window.removeEventListener('storage', changed);
-    };
+    window.addEventListener('beforeunload', leaving);
+    return () => window.removeEventListener('beforeunload', leaving);
   }, []);
-  const openProtectedView = (target: ProtectedView) => {
-    if (privacyUnlocked) setView(target);
-    else setPendingView(target);
-  };
-  const startLog = () => {
+  async function selectFile(create: boolean) {
+    if (selecting.current) return;
+    selecting.current = true;
+    setBusy(true);
+    setError('');
+    setMessage('');
     try {
-      if (hasVault(localStorage)) setView('log');
-      else setPendingView('log');
+      const handle = await chooseLogFile(create);
+      const loaded = await (create
+        ? localLogFile.create(handle)
+        : localLogFile.open(handle));
+      setLogs(loaded);
+      setName(localLogFile.name);
+      setMessage(
+        create
+          ? '已创建空白日志文件，可以开始记录。'
+          : '已打开日志文件。后续保存和删除将写入此文件。',
+      );
     } catch (e) {
-      setStorageError(vaultError(e));
+      if (!(e instanceof Error && e.name === 'AbortError'))
+        setError(fileError(e));
+    } finally {
+      selecting.current = false;
+      setBusy(false);
+    }
+  }
+  const copy = () => {
+    try {
+      const url = URL.createObjectURL(
+        new Blob([localLogFile.exportText()], { type: 'application/json' }),
+      );
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `emotion-logs-copy-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      setMessage('已发起明文副本下载，请确认文件保存成功。');
+      setError('');
+    } catch (e) {
+      setError(fileError(e));
     }
   };
   return (
     <main className="min-h-screen bg-[#F5F3EF] text-[#1F2937]">
       <div className="app-shell">
-        {storageError && (
-          <p className="notice" role="alert">
-            {storageError}
-          </p>
-        )}
         {view !== 'home' && (
           <button className="back-link" onClick={() => setView('home')}>
             <ChevronLeft size={18} /> 返回首页
@@ -264,72 +241,86 @@ export default function Home() {
         )}
         {view === 'home' && (
           <HomePage
-            logs={calendar}
-            onLog={startLog}
-            onHistory={() => openProtectedView('history')}
-            onAnalysis={() => openProtectedView('analysis')}
-            onBackup={() => setBackupOpen(true)}
+            logs={logs}
+            onLog={() => {
+              if (!name) {
+                setError(
+                  '请先点击“新建日志文件”，或打开以前保存的 JSON 文件。',
+                );
+                return;
+              }
+              setView('log');
+            }}
+            onHistory={() => setView('history')}
+            onAnalysis={() => setView('analysis')}
+            filePanel={
+              <section className="file-panel" aria-label="本地日志文件">
+                <strong>
+                  {name ? `当前文件：${name}` : '开始前，选择本地日志文件'}
+                </strong>
+                <p>
+                  首次点击“新建日志文件”，可保存在 HTML
+                  旁边。以后每次打开网页，选择“打开日志文件”继续使用。
+                </p>
+                <div className="file-actions">
+                  <Button
+                    variant="outline"
+                    onClick={() => void selectFile(true)}
+                    disabled={busy}
+                  >
+                    新建日志文件
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void selectFile(false)}
+                    disabled={busy}
+                  >
+                    打开日志文件
+                  </Button>
+                  {name && (
+                    <Button variant="outline" onClick={copy} disabled={busy}>
+                      下载副本
+                    </Button>
+                  )}
+                </div>
+                {!supportsLocalFiles() && (
+                  <p className="file-error" role="alert">
+                    当前浏览器不支持直接读写文件，请使用最新版桌面 Chrome 或
+                    Edge。不会改用浏览器存储。
+                  </p>
+                )}
+                {busy && <output>正在处理文件，请勿关闭网页…</output>}
+                {message && <output className="file-status">{message}</output>}
+                {error && (
+                  <p className="file-error" role="alert">
+                    {error}
+                  </p>
+                )}
+              </section>
+            }
           />
-        )}{' '}
+        )}
         {view === 'log' && (
           <LogPage
             onSave={async (record) => {
-              const current = generation.current;
-              await appendLog(localStorage, record);
-              refreshCalendar();
-              if (session && current === generation.current)
-                setLogs((previous) =>
-                  [record, ...previous].sort((a, b) =>
-                    b.ts.localeCompare(a.ts),
-                  ),
-                );
+              const saved = await localLogFile.append(record);
+              setLogs(saved);
+              setMessage('日志已保存到本地文件。');
+              setError('');
               setView('home');
             }}
           />
         )}
-        {privacyUnlocked && view === 'history' && (
+        {view === 'history' && (
           <HistoryPage
             logs={logs}
             onDelete={async (id) => {
-              if (!session) throw new Error('请重新解锁。');
-              const current = generation.current;
-              const remaining = await deleteLog(localStorage, session, id);
-              refreshCalendar();
-              if (current === generation.current) setLogs(remaining);
-            }}
-          />
-        )}{' '}
-        {privacyUnlocked && view === 'analysis' && <AnalysisPage logs={logs} />}
-        {backupOpen && (
-          <BackupDialog
-            onClose={() => setBackupOpen(false)}
-            onRestored={() => {
-              generation.current++;
-              setSession(null);
-              setLogs([]);
-              refreshCalendar();
+              setLogs(await localLogFile.remove(id));
+              setMessage('删除已保存到本地文件。');
             }}
           />
         )}
-        {pendingView && (
-          <PrivacyPinDialog
-            destination={
-              pendingView === 'history'
-                ? '历史记录'
-                : pendingView === 'analysis'
-                  ? '情绪分析'
-                  : '新日志'
-            }
-            onCancel={() => setPendingView(null)}
-            onUnlock={(unlocked) => {
-              setSession({ ...unlocked, logs: [] });
-              setLogs(unlocked.logs);
-              refreshCalendar();
-              setView(pendingView);
-              setPendingView(null);
-            }}
-          />
-        )}
+        {view === 'analysis' && <AnalysisPage logs={logs} />}
       </div>
     </main>
   );
@@ -340,13 +331,13 @@ function HomePage({
   onLog,
   onHistory,
   onAnalysis,
-  onBackup,
+  filePanel,
 }: {
   logs: { ts: string }[];
   onLog: () => void;
   onHistory: () => void;
   onAnalysis: () => void;
-  onBackup: () => void;
+  filePanel: React.ReactNode;
 }) {
   const [mode, setMode] = useState<'week' | 'month'>('week'),
     [offset, setOffset] = useState(0);
@@ -391,6 +382,7 @@ function HomePage({
           <p>记录情绪，观察变化</p>
         </div>
       </header>
+      {filePanel}
       <button className="entry-card" onClick={onLog}>
         <span>记录情绪日志</span>
         <span>→</span>
@@ -474,9 +466,9 @@ function HomePage({
         </button>
       </section>
       <footer className="storage-footer">
-        <button onClick={onBackup}>备份与恢复</button>
         <p>
-          日志加密保存在此浏览器，不在 HTML 文件中。请定期备份，勿用无痕模式。
+          日志明文保存在你选择的 JSON
+          文件中，不使用浏览器存储。请定期备份，勿将日志上传到 GitHub。
         </p>
       </footer>
     </>
@@ -538,7 +530,7 @@ function LogPage({ onSave }: { onSave: (log: Log) => Promise<void> }) {
         responses: draft.responses.filter((r) => r.text.trim()),
       });
     } catch (e) {
-      setNotice(vaultError(e));
+      setNotice(fileError(e));
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -943,7 +935,7 @@ function HistoryPage({
             </DialogDescription>
           </DialogHeader>
           {deleteError && (
-            <p role="alert" className="privacy-error">
+            <p role="alert" className="file-error">
               {deleteError}
             </p>
           )}
@@ -966,7 +958,7 @@ function HistoryPage({
                   await onDelete(target.id);
                   setTarget(null);
                 } catch (e) {
-                  setDeleteError(vaultError(e));
+                  setDeleteError(fileError(e));
                 } finally {
                   setDeleting(false);
                 }

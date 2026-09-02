@@ -28,7 +28,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Lint source
         run: npm run lint
-      - name: Test encryption, backups and single-file packaging
+      - name: Test plaintext disk storage and single-file packaging
         run: npm test
       - name: Build the app
         run: npm run build

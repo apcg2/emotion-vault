@@ -1,4 +1,4 @@
-import type { MoodLog } from './encrypted-vault';
+import type { MoodLog } from './local-file';
 
 export function previousWeekDemoLogs(today = new Date()): MoodLog[] {
   const samples = [
