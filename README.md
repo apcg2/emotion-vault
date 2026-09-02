@@ -33,6 +33,18 @@ npm run build
 
 精简源码仍需要这一次依赖安装，首次安装通常需要网络。若 agent 报 `CODEBUDDY_BROKER_DENY` 或文件权限拒绝：确认当前目录是本项目，申请一次正式授权；仍被拒绝时，停止反复重试或分析代理内部机制，给用户项目的完整路径，由用户在系统终端完成上述两步。不要停用、修改或绕过 agent 的安全限制。更换下载镜像不能解决文件写入权限拒绝。
 
+### Windows 提示找不到 Node.js / 启动文字报错
+
+“Node.js was not found”表示启动器找不到 Node，可能尚未安装，或安装后当前终端的 PATH 尚未刷新。源码压缩包不包含 Node，也不包含首次构建结果。
+
+1. 到 [Node.js 官网](https://nodejs.org/en/download) 下载 **24 LTS 的 Windows Installer（.msi）**，按电脑架构选择 x64 或 ARM64。安装时保留 npm 和 Add to PATH 选项。
+2. 安装完成后关闭旧终端；在已解压的项目文件夹地址栏输入 `cmd` 并回车，打开新窗口。先运行 `node -v`，应显示 `v24.x.x`。
+3. 仍在这个项目文件夹里运行 `npm.cmd ci` 和 `npm.cmd run build`。完成后双击 `启动.cmd`。使用 PowerShell 时也可用这两个 `npm.cmd` 命令，无需更改执行策略。
+
+如果已安装 Node 但找不到，请先重开终端；仍然失败可用官方安装器修复 Add to PATH。新版启动器也会检查常见安装目录和 NVM 的链接目录，且不会修改系统 PATH。
+
+旧版可能同时出现中文乱码和 `is not recognized as an internal or external command`。请更新根目录的 `启动.cmd`（不是 `启动.command`）。新版批处理使用 ASCII 提示，并在 Git 仓库中保留 Windows 原生 CRLF 换行，以兼容克隆、ZIP 下载和 Raw 下载；Node 启动后的应用提示仍为中文。无需删除浏览器数据或重新设置密码。
+
 ### 以后使用：双击启动
 
 - **Mac：双击根目录的 `启动.command`。**

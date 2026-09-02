@@ -1,0 +1,32 @@
+name: Windows startup
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Install source dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test encryption, local server and Windows batch startup
+        run: npm test
+      - name: Build the app
+        run: npm run build

@@ -138,7 +138,7 @@ test('both wrappers use their own directory and preserve failures; macOS wrapper
   assert.ok(mac.includes('cd "$EMOTION_ROOT"'));
   assert.ok(mac.includes('"$EMOTION_ROOT/scripts/launch.mjs"'));
   assert.ok(win.includes('pushd "%~dp0"'));
-  assert.ok(win.includes('node.exe "%~dp0scripts\\launch.mjs"'));
+  assert.ok(win.includes('"%EMOTION_NODE%" "%~dp0scripts\\launch.mjs"'));
   assert.ok(win.includes('exit /b %EMOTION_EXIT%'));
   for (const source of [mac, win])
     assert.doesNotMatch(

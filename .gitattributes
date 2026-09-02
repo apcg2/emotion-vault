@@ -1,2 +1,3 @@
 *.command text eol=lf
-*.cmd text eol=crlf
+# Preserve CRLF in Git blobs too, so ZIP/raw downloads work like git checkouts.
+*.cmd -text whitespace=cr-at-eol
