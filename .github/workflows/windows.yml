@@ -22,6 +22,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Remember competing Node 22 runtime for regression tests
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'EMOTION_TEST_NODE22=' + process.execPath + '\n')"
+      - uses: actions/setup-node@v7
+        with:
           node-version-file: .nvmrc
           package-manager-cache: false
       - name: Install source dependencies

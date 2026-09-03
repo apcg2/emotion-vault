@@ -42,4 +42,5 @@ next-env.d.ts
 emotion-vault-backup-*.json
 emotion-logs*.json
 /data/
+/.local/
 /我的日志/

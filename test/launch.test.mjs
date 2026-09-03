@@ -21,6 +21,10 @@ void test('native launcher supports Unicode/spaces directory and runs from a dif
       new URL('../scripts/launch.mjs', import.meta.url),
       join(dir, 'scripts/launch.mjs'),
     );
+    await copyFile(
+      new URL('../scripts/runtime.mjs', import.meta.url),
+      join(dir, 'scripts/runtime.mjs'),
+    );
     await writeFile(
       join(dir, 'dist/emotion-vault.html'),
       '<html>synthetic</html>',

@@ -1,7 +1,8 @@
-import { access } from 'node:fs/promises';
+import { access, realpath } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { assertRuntime, configuredNode } from './runtime.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function openBrowser(url) {
@@ -20,8 +21,43 @@ function openBrowser(url) {
   child.unref();
 }
 async function main() {
-  if (Number(process.versions.node.split('.')[0]) < 24)
-    throw new Error('需要 Node.js 24 或更高版本。请按 README 完成首次安装。');
+  const configured = await configuredNode(root);
+  if (configured) {
+    let selected;
+    try {
+      selected = await realpath(configured);
+    } catch {
+      throw new Error(
+        '配置的 Node 路径已失效，请用 Node 24 执行 scripts/configure-runtime.mjs --replace。',
+      );
+    }
+    if (selected !== (await realpath(process.execPath))) {
+      const child = spawn(
+        selected,
+        [fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+        { stdio: 'inherit' },
+      );
+      const stop = (signal) => {
+        child.kill(signal);
+      };
+      process.on('SIGINT', stop);
+      process.on('SIGTERM', stop);
+      try {
+        process.exitCode = await new Promise((done, reject) => {
+          child.once('error', reject);
+          child.once('exit', (code) => done(code ?? 1));
+        });
+      } finally {
+        process.removeListener('SIGINT', stop);
+        process.removeListener('SIGTERM', stop);
+      }
+      return;
+    }
+  }
+  assertRuntime();
+  console.log(
+    '运行环境：Node ' + process.versions.node + ' · ' + process.execPath,
+  );
   if (
     process.argv.slice(2).some((arg) => !['--check', '--no-open'].includes(arg))
   )
@@ -80,8 +116,8 @@ async function main() {
       },
     );
   };
-  process.once('SIGINT', stop);
-  process.once('SIGTERM', stop);
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
   if (!process.argv.includes('--no-open')) openBrowser(app.url);
 }
 try {

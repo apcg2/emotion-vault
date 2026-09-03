@@ -2,6 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
+import { assertRuntime, configureRuntime } from './runtime.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function bundledLicenses(chunks) {
@@ -124,5 +125,7 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
+  assertRuntime();
   await buildHtml();
+  await configureRuntime(root);
 }

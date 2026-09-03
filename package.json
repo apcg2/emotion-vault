@@ -1,6 +1,6 @@
 {
   "name": "emotion-vault",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "engines": {
     "node": ">=24.0.0"
@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "npm run build && node scripts/launch.mjs",
     "start": "node scripts/launch.mjs",
+    "runtime:configure": "node scripts/configure-runtime.mjs",
     "build": "tsc --noEmit && node scripts/build-html.mjs",
     "test": "node --test test/*.test.mjs",
     "lint": "oxlint",

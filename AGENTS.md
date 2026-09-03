@@ -3,6 +3,9 @@
 Follow README.md and preserve the UI, fields, read-only history, deletion and analysis.
 
 - User explicitly requests script-launched local Node server, not a packaged app or direct-file HTML. First setup: Node 24+, npm ci, npm run build. Daily: 启动.cmd / 启动.command.
+- Build records a machine-local Node path in .local/node-path.txt. Preserve existing valid binding; use a verified Node 24 full path with scripts/configure-runtime.mjs --replace to repair a stale binding. Never upload .local or change global PATH/system Node for this project.
+- Managed Agent Node is not sufficient evidence of independent desktop startup. Verify the executable works from a normal system terminal and remains installed, or install a separate official user runtime with required authorization. Do not bypass policies.
+- For final setup acceptance, normally stop only the service you started for this project, then start through the actual native launcher from a normal terminal/desktop and verify version, path, open, stop and restart. Do not substitute direct launch.mjs or HTTP 200 for this check. If desktop interaction is unavailable, hand off double-click verification to the user explicitly.
 - No passwords, encryption, browser persistence or implicit fallback. Never read, clear, migrate or upload legacy browser or JSON records. Do not automatically import demo data.
 - Persist only in project data/logs.json through the loopback server. Initialize only missing files. Stop on corrupt/unsupported data; never reset on errors.
 - Keep user data and backups out of public commits/releases. Preserve data on source updates. Prior release assets remain intact.
