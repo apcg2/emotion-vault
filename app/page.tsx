@@ -170,7 +170,6 @@ export default function Home() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [view, setView] = useState<View>('home');
   const [ready, setReady] = useState(false);
-  const [path, setPath] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(true);
@@ -183,7 +182,6 @@ export default function Home() {
     setError('');
     try {
       setLogs(await serverLogs.load());
-      setPath(serverLogs.dataPath);
       setReady(true);
       setMessage('');
     } catch (e) {
@@ -208,22 +206,6 @@ export default function Home() {
     }
     setView(next);
   }
-  const copy = () => {
-    const url = URL.createObjectURL(
-      new Blob([serverLogs.exportText()], { type: 'application/json' }),
-    );
-    const a = document.createElement('a');
-    a.href = url;
-    a.download =
-      'emotion-logs-copy-' +
-      new Date().toISOString().replace(/[:.]/g, '-') +
-      '.json';
-    document.body.append(a);
-    a.click();
-    a.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    setMessage('已发起明文副本下载，请确认文件保存成功。');
-  };
   return (
     <main className="min-h-screen bg-[#F5F3EF] text-[#1F2937]">
       <div className="app-shell">
@@ -238,38 +220,27 @@ export default function Home() {
             onLog={() => navigate('log')}
             onHistory={() => navigate('history')}
             onAnalysis={() => navigate('analysis')}
-            filePanel={
-              <section className="file-panel" aria-label="本地日志文件">
-                <strong>
-                  {ready ? '日志自动保存到本机' : '连接本地日志文件'}
-                </strong>
-                <p>
-                  保存位置：项目文件夹内的
-                  data/logs.json。无需选择文件，清理浏览器不会删除这里的日志。
-                </p>
-                {path && <p style={{ overflowWrap: 'anywhere' }}>{path}</p>}
-                <div className="file-actions">
-                  <Button
-                    variant="outline"
-                    onClick={() => void reload()}
-                    disabled={busy}
-                  >
-                    重新读取
-                  </Button>
-                  {ready && (
-                    <Button variant="outline" onClick={copy} disabled={busy}>
-                      下载副本
-                    </Button>
+            feedback={
+              (busy || message || error) && (
+                <div className="home-feedback">
+                  {busy && <output>正在连接…</output>}
+                  {!error && message && <output>{message}</output>}
+                  {error && (
+                    <>
+                      <p className="file-error" role="alert">
+                        {error}
+                      </p>
+                      <Button
+                        variant="outline"
+                        onClick={() => void reload()}
+                        disabled={busy}
+                      >
+                        重试连接
+                      </Button>
+                    </>
                   )}
                 </div>
-                {busy && <output>正在读取本地文件…</output>}
-                {message && <output className="file-status">{message}</output>}
-                {error && (
-                  <p className="file-error" role="alert">
-                    {error}
-                  </p>
-                )}
-              </section>
+              )
             }
           />
         )}
@@ -278,11 +249,12 @@ export default function Home() {
             onSave={async (record) => {
               try {
                 setLogs(await serverLogs.append(record));
-                setMessage('日志已保存到 data/logs.json。');
+                setMessage('日志已保存。');
                 setError('');
                 setView('home');
               } catch (e) {
                 setReady(false);
+                setError(fileError(e));
                 throw e;
               }
             }}
@@ -294,9 +266,10 @@ export default function Home() {
             onDelete={async (id) => {
               try {
                 setLogs(await serverLogs.remove(id));
-                setMessage('删除已保存到本地文件。');
+                setMessage('日志已删除。');
               } catch (e) {
                 setReady(false);
+                setError(fileError(e));
                 throw e;
               }
             }}
@@ -313,13 +286,13 @@ function HomePage({
   onLog,
   onHistory,
   onAnalysis,
-  filePanel,
+  feedback,
 }: {
   logs: { ts: string }[];
   onLog: () => void;
   onHistory: () => void;
   onAnalysis: () => void;
-  filePanel: React.ReactNode;
+  feedback: React.ReactNode;
 }) {
   const [mode, setMode] = useState<'week' | 'month'>('week'),
     [offset, setOffset] = useState(0);
@@ -364,7 +337,7 @@ function HomePage({
           <p>记录情绪，观察变化</p>
         </div>
       </header>
-      {filePanel}
+      {feedback}
       <button className="entry-card" onClick={onLog}>
         <span>记录情绪日志</span>
         <span>→</span>
@@ -447,12 +420,6 @@ function HomePage({
           历史记录 <span>→</span>
         </button>
       </section>
-      <footer className="storage-footer">
-        <p>
-          日志和自动备份以明文保存在项目 data 目录中，不使用浏览器存储。
-          请定期将备份复制到其他安全位置，勿将日志上传到 GitHub。
-        </p>
-      </footer>
     </>
   );
 }

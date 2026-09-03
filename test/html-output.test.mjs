@@ -43,14 +43,17 @@ void test('build produces one server-served HTML in a Unicode/spaces path, with 
       '历史记录',
       '情绪分析',
       '认知扭曲',
-      '日志自动保存到本机',
-      'data/logs.json',
+      '重试连接',
       '/api/logs',
       'emotion-logs',
       '#demo-data',
     ])
       assert.ok(html.includes(text), text);
     assert.ok(Buffer.byteLength(html) < 2 * 1024 * 1024);
+    assert.doesNotMatch(
+      scripts[0][1],
+      /日志自动保存到本机|保存位置：项目文件夹|下载副本|日志和自动备份以明文|file-panel|storage-footer/,
+    );
     assert.doesNotMatch(
       scripts[0][1],
       /localStorage|sessionStorage|indexedDB|showOpenFilePicker|showSaveFilePicker|moodflow_encrypted_vault|PBKDF2|RSA-OAEP|设置四位数字密码/,

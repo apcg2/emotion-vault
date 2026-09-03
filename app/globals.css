@@ -1210,39 +1210,14 @@
     gap: 6px;
   }
 }
-/* Local JSON file selection and save status. */
-.storage-footer {
-  margin: 24px auto 0;
-  max-width: 440px;
-  text-align: center;
-  color: #6b7280;
-  font-size: 12px;
-  line-height: 1.8;
-}
-.file-panel {
+/* Only transient connection/save feedback; no permanent storage panel. */
+.home-feedback {
   margin: 0 0 18px;
-  padding: 18px 22px;
-  border: 1px solid #dce8df;
-  border-radius: 16px;
-  background: #f0f6f1;
+  color: #38624a;
+  font-size: 13px;
+  line-height: 1.8;
   overflow-wrap: anywhere;
 }
-.file-panel strong {
-  font-size: 14px;
-}
-.file-panel p,
-.file-panel output {
-  display: block;
+.home-feedback button {
   margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.8;
-}
-.file-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.file-status {
-  color: #38624a;
 }
