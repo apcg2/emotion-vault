@@ -33,7 +33,7 @@ export function parseLogDocument(text: string): LogDocument {
     !Array.isArray(doc.logs)
   )
     throw new Error(
-      '请选择新版明文日志文件；不支持旧版加密数据，也不会自动迁移。',
+      '日志文件格式不受支持，未修改原文件。',
     );
   for (const log of doc.logs) {
     if (
