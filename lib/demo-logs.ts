@@ -1,4 +1,4 @@
-import type { MoodLog } from './local-file';
+import type { MoodLog } from './log-document';
 
 export function previousWeekDemoLogs(today = new Date()): MoodLog[] {
   const samples = [

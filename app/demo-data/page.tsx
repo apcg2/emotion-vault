@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { localLogFile, fileError } from '@/lib/local-file';
+import { serverLogs } from '@/lib/server-client';
+import { fileError } from '@/lib/log-document';
 import { previousWeekDemoLogs } from '@/lib/demo-logs';
 
 export default function DemoDataPage() {
@@ -23,7 +24,7 @@ export default function DemoDataPage() {
             天、每天一条的模拟日志，包含不同情绪、变化幅度、认知扭曲和积极回应。所有记录标注“模拟数据”，会参与历史与分析展示，可在历史记录中逐条删除。
           </p>
           <p className="detail-text">
-            请先在首页新建或打开日志文件；仅在你点击后写入明文模拟记录，不重复导入相同日期的数据。
+            仅在你点击后写入项目 data/logs.json；不重复导入相同日期的模拟记录。
           </p>
           <Button
             className="save-button"
@@ -35,14 +36,9 @@ export default function DemoDataPage() {
               setMessage('');
               try {
                 const logs = previousWeekDemoLogs();
-                let added = 0;
-                await localLogFile.update((existing) => {
-                  const pending = logs.filter(
-                    (log) => !existing.some((item) => item.id === log.id),
-                  );
-                  added = pending.length;
-                  return [...existing, ...pending];
-                });
+                const existing = await serverLogs.load();
+                const saved = await serverLogs.demo(logs);
+                const added = saved.length - existing.length;
                 const date = (ts: string) =>
                   new Date(ts).toLocaleDateString('zh-CN');
                 setMessage(

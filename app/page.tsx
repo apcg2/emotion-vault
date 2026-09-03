@@ -20,12 +20,8 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { LogDetail } from '@/components/log-detail';
-import {
-  chooseLogFile,
-  localLogFile,
-  supportsLocalFiles,
-  fileError,
-} from '@/lib/local-file';
+import { serverLogs } from '@/lib/server-client';
+import { fileError } from '@/lib/log-document';
 import {
   Dialog,
   DialogContent,
@@ -171,65 +167,62 @@ const blank = () => ({
   responses: [{ text: '', belief: 50 }] as Response[],
 });
 export default function Home() {
-  const [logs, setLogs] = useState<Log[]>(() => localLogFile.logs);
+  const [logs, setLogs] = useState<Log[]>([]);
   const [view, setView] = useState<View>('home');
-  const [name, setName] = useState(localLogFile.name);
+  const [ready, setReady] = useState(false);
+  const [path, setPath] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const selecting = useRef(false);
+  const [busy, setBusy] = useState(true);
+  const loading = useRef(false);
+  async function reload() {
+    if (loading.current) return;
+    loading.current = true;
+    setBusy(true);
+    setReady(false);
+    setError('');
+    try {
+      setLogs(await serverLogs.load());
+      setPath(serverLogs.dataPath);
+      setReady(true);
+      setMessage('');
+    } catch (e) {
+      setError(fileError(e));
+    } finally {
+      loading.current = false;
+      setBusy(false);
+    }
+  }
   useEffect(() => {
+    void Promise.resolve().then(reload);
     const leaving = (event: BeforeUnloadEvent) => {
-      if (localLogFile.isBusy || selecting.current) {
-        event.preventDefault();
-      }
+      if (serverLogs.isBusy) event.preventDefault();
     };
     window.addEventListener('beforeunload', leaving);
     return () => window.removeEventListener('beforeunload', leaving);
   }, []);
-  async function selectFile(create: boolean) {
-    if (selecting.current) return;
-    selecting.current = true;
-    setBusy(true);
-    setError('');
-    setMessage('');
-    try {
-      const handle = await chooseLogFile(create);
-      const loaded = await (create
-        ? localLogFile.create(handle)
-        : localLogFile.open(handle));
-      setLogs(loaded);
-      setName(localLogFile.name);
-      setMessage(
-        create
-          ? '已创建空白日志文件，可以开始记录。'
-          : '已打开日志文件。后续保存和删除将写入此文件。',
-      );
-    } catch (e) {
-      if (!(e instanceof Error && e.name === 'AbortError'))
-        setError(fileError(e));
-    } finally {
-      selecting.current = false;
-      setBusy(false);
+  function navigate(next: View) {
+    if (!ready) {
+      setError('本地日志尚未读取成功，请先检查连接。');
+      return;
     }
+    setView(next);
   }
   const copy = () => {
-    try {
-      const url = URL.createObjectURL(
-        new Blob([localLogFile.exportText()], { type: 'application/json' }),
-      );
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `emotion-logs-copy-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setMessage('已发起明文副本下载，请确认文件保存成功。');
-      setError('');
-    } catch (e) {
-      setError(fileError(e));
-    }
+    const url = URL.createObjectURL(
+      new Blob([serverLogs.exportText()], { type: 'application/json' }),
+    );
+    const a = document.createElement('a');
+    a.href = url;
+    a.download =
+      'emotion-logs-copy-' +
+      new Date().toISOString().replace(/[:.]/g, '-') +
+      '.json';
+    document.body.append(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    setMessage('已发起明文副本下载，请确认文件保存成功。');
   };
   return (
     <main className="min-h-screen bg-[#F5F3EF] text-[#1F2937]">
@@ -242,54 +235,34 @@ export default function Home() {
         {view === 'home' && (
           <HomePage
             logs={logs}
-            onLog={() => {
-              if (!name) {
-                setError(
-                  '请先点击“新建日志文件”，或打开以前保存的 JSON 文件。',
-                );
-                return;
-              }
-              setView('log');
-            }}
-            onHistory={() => setView('history')}
-            onAnalysis={() => setView('analysis')}
+            onLog={() => navigate('log')}
+            onHistory={() => navigate('history')}
+            onAnalysis={() => navigate('analysis')}
             filePanel={
               <section className="file-panel" aria-label="本地日志文件">
                 <strong>
-                  {name ? `当前文件：${name}` : '开始前，选择本地日志文件'}
+                  {ready ? '日志自动保存到本机' : '连接本地日志文件'}
                 </strong>
                 <p>
-                  首次点击“新建日志文件”，可保存在 HTML
-                  旁边。以后每次打开网页，选择“打开日志文件”继续使用。
+                  保存位置：项目文件夹内的
+                  data/logs.json。无需选择文件，清理浏览器不会删除这里的日志。
                 </p>
+                {path && <p style={{ overflowWrap: 'anywhere' }}>{path}</p>}
                 <div className="file-actions">
                   <Button
                     variant="outline"
-                    onClick={() => void selectFile(true)}
+                    onClick={() => void reload()}
                     disabled={busy}
                   >
-                    新建日志文件
+                    重新读取
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => void selectFile(false)}
-                    disabled={busy}
-                  >
-                    打开日志文件
-                  </Button>
-                  {name && (
+                  {ready && (
                     <Button variant="outline" onClick={copy} disabled={busy}>
                       下载副本
                     </Button>
                   )}
                 </div>
-                {!supportsLocalFiles() && (
-                  <p className="file-error" role="alert">
-                    当前浏览器不支持直接读写文件，请使用最新版桌面 Chrome 或
-                    Edge。不会改用浏览器存储。
-                  </p>
-                )}
-                {busy && <output>正在处理文件，请勿关闭网页…</output>}
+                {busy && <output>正在读取本地文件…</output>}
                 {message && <output className="file-status">{message}</output>}
                 {error && (
                   <p className="file-error" role="alert">
@@ -303,11 +276,15 @@ export default function Home() {
         {view === 'log' && (
           <LogPage
             onSave={async (record) => {
-              const saved = await localLogFile.append(record);
-              setLogs(saved);
-              setMessage('日志已保存到本地文件。');
-              setError('');
-              setView('home');
+              try {
+                setLogs(await serverLogs.append(record));
+                setMessage('日志已保存到 data/logs.json。');
+                setError('');
+                setView('home');
+              } catch (e) {
+                setReady(false);
+                throw e;
+              }
             }}
           />
         )}
@@ -315,8 +292,13 @@ export default function Home() {
           <HistoryPage
             logs={logs}
             onDelete={async (id) => {
-              setLogs(await localLogFile.remove(id));
-              setMessage('删除已保存到本地文件。');
+              try {
+                setLogs(await serverLogs.remove(id));
+                setMessage('删除已保存到本地文件。');
+              } catch (e) {
+                setReady(false);
+                throw e;
+              }
             }}
           />
         )}
@@ -467,8 +449,8 @@ function HomePage({
       </section>
       <footer className="storage-footer">
         <p>
-          日志明文保存在你选择的 JSON
-          文件中，不使用浏览器存储。请定期备份，勿将日志上传到 GitHub。
+          日志和自动备份以明文保存在项目 data 目录中，不使用浏览器存储。
+          请定期将备份复制到其他安全位置，勿将日志上传到 GitHub。
         </p>
       </footer>
     </>

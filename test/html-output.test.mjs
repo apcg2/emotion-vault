@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { Script } from 'node:vm';
 import { buildHtml } from '../scripts/build-html.mjs';
 
-void test('build produces one offline HTML in a Unicode/spaces path, with no module or external assets', async () => {
+void test('build produces one server-served HTML in a Unicode/spaces path, with no external assets', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'emotion-html-中文 空格-'));
   try {
     const target = await buildHtml(dir);
@@ -14,7 +14,7 @@ void test('build produces one offline HTML in a Unicode/spaces path, with no mod
     const html = await readFile(target, 'utf8');
     assert.match(html, /<title>情绪知了<\/title>/);
     assert.match(html, /href="data:image\/svg\+xml;base64,/);
-    assert.match(html, /connect-src 'none'/);
+    assert.match(html, /connect-src 'self'/);
     assert.match(html, /id="third-party-notices" hidden/);
     assert.match(html, /Permission is hereby granted/);
     for (const name of [
@@ -43,8 +43,9 @@ void test('build produces one offline HTML in a Unicode/spaces path, with no mod
       '历史记录',
       '情绪分析',
       '认知扭曲',
-      '新建日志文件',
-      '打开日志文件',
+      '日志自动保存到本机',
+      'data/logs.json',
+      '/api/logs',
       'emotion-logs',
       '#demo-data',
     ])
@@ -52,7 +53,7 @@ void test('build produces one offline HTML in a Unicode/spaces path, with no mod
     assert.ok(Buffer.byteLength(html) < 2 * 1024 * 1024);
     assert.doesNotMatch(
       scripts[0][1],
-      /localStorage|sessionStorage|indexedDB|moodflow_encrypted_vault|PBKDF2|RSA-OAEP|设置四位数字密码/,
+      /localStorage|sessionStorage|indexedDB|showOpenFilePicker|showSaveFilePicker|moodflow_encrypted_vault|PBKDF2|RSA-OAEP|设置四位数字密码/,
     );
   } finally {
     await rm(dir, { recursive: true, force: true }); // Only this test's mkdtemp directory.

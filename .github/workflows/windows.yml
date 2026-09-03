@@ -1,4 +1,4 @@
-name: HTML build (Windows and macOS)
+name: Local server (Windows and macOS)
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Lint source
         run: npm run lint
-      - name: Test plaintext disk storage and single-file packaging
+      - name: Test local storage, API security and native launchers
         run: npm test
       - name: Build the app
         run: npm run build

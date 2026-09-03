@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import type { MoodLog } from '@/lib/local-file';
+import type { MoodLog } from '@/lib/log-document';
 
 export function LogDetail({
   log,
